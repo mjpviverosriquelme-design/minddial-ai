@@ -12,3 +12,7 @@ This repository contains the **Warm & Friendly** clock-drawing research prototyp
 The four trained `.joblib` baseline models are only in the separate local Python ZIP, not in this repository. To enable genuine on-device inference, export each trained model to a browser-compatible representation, reproduce image preprocessing exactly, and validate parity with Python on held-out images. Do not present sample results as genuine predictions.
 
 For now, run the local Python package for actual inference. This is a research prototype, not a medical diagnosis. No participant images or sensitive data should be committed to GitHub.
+
+## Included experimental browser models
+
+`browser.html` now downloads the four baseline SVM models automatically from `models/`. Optional trusted local replacements remain available. The drawings stay on the device. Clinical validity and browser/Python output parity have not been established. The homepage example mode remains illustrative; Python API endpoints are not hosted by Pages.

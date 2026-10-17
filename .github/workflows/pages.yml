@@ -23,6 +23,8 @@ jobs:
           mkdir -p _site
           cp static/index.html _site/index.html
           cp static/browser.html _site/browser.html
+          mkdir -p _site/models
+          cp models/*.joblib _site/models/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
