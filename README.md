@@ -1,20 +1,14 @@
-# MindDial AI — Warm & Friendly
+# MindDial AI — GitHub Pages
 
-Responsive, English-language, senior-friendly research prototype for Clock Drawing Test screening, with four modular AI prediction functions and human review.
+This repository contains the **Warm & Friendly** clock-drawing research prototype.
 
-## Run locally
+## GitHub Pages setup
+1. Repository Settings → Pages → Build and deployment → **GitHub Actions**.
+2. The workflow `.github/workflows/pages.yml` will publish `static/index.html`.
+3. On GitHub Free, the repository generally needs to be **public** to use Pages. Make sure it contains no personal participant data before changing visibility.
 
-```bash
-pip install -r requirements.txt
-export MINDDIAL_REVIEW_TOKEN="choose-a-strong-private-token"  # macOS/Linux
-uvicorn app:app --reload
-```
+**Important:** GitHub Pages is static hosting. The existing `/api/evaluate` and `/api/review` Python endpoints **will not work** on GitHub Pages. The current HTML supports a labeled example mode, but cannot perform real AI inference there.
 
-On Windows PowerShell: `$env:MINDDIAL_REVIEW_TOKEN="choose-a-strong-private-token"`.
-Open http://127.0.0.1:8000.
+The four trained `.joblib` baseline models are only in the separate local Python ZIP, not in this repository. To enable genuine on-device inference, export each trained model to a browser-compatible representation, reproduce image preprocessing exactly, and validate parity with Python on held-out images. Do not present sample results as genuine predictions.
 
-`static/index.html` alone supports only the explicitly labeled fictional sample. Real predictions require the Python backend. GitHub Pages can host a static interface, **not** the Python inference API; production deployment needs a separate secure server.
-
-**Model selection:** see `MODEL_SELECTION.md`. The bundle still includes the existing SVM baseline models, not the higher-accuracy candidates until their trained artifacts and preprocessing are verified. Reviewers can adjust each binary score and save through the API when authenticated.
-
-**Privacy:** demographic data are optional and saved only with consent. This prototype is not production-ready for identifiable health information. Do not expose the reviewer token in public code. Authentication, encryption, data retention, consent processes, and independent clinical validation are required before real participant use. The result is not a diagnosis.
+For now, run the local Python package for actual inference. This is a research prototype, not a medical diagnosis. No participant images or sensitive data should be committed to GitHub.
