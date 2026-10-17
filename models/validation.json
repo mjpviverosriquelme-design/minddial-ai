@@ -1,0 +1,7 @@
+{
+  "note": "Baseline model metrics are historical experiment records; binaries are not yet uploaded to this repository.",
+  "circle_accuracy": 0.7725,
+  "numbers_accuracy": 0.83,
+  "placement_accuracy": 0.595,
+  "hands_accuracy": 0.69
+}
