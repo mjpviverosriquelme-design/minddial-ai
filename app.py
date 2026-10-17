@@ -20,6 +20,13 @@ def connect():
     return db
 with connect(): pass
 
+@app.get('/health')
+def health():
+    model_files={key:(BASE/'models'/f'{key}.joblib').is_file() for key in KEYS}
+    return {'status':'ready' if all(model_files.values()) else 'models_missing',
+            'model_files_present':model_files,
+            'research_prototype':True}
+
 @app.get('/')
 def home(): return FileResponse(BASE/'static'/'index.html')
 
