@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: minddial-ai
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: MINDDIAL_REVIEW_TOKEN
+        generateValue: true
+      - key: MINDDIAL_DB
+        value: /var/data/reviews.sqlite3
+    disk:
+      name: minddial-data
+      mountPath: /var/data
+      sizeGB: 1
