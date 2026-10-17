@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MindDial AI — Local Model Evaluation</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#39244c;background:#fffaf4;font-size:18px}*{box-sizing:border-box}body{margin:0}header{background:#604184;color:#fff;padding:20px max(18px,calc((100vw - 1000px)/2));font-size:24px;font-weight:bold}main{max-width:1000px;margin:auto;padding:28px 18px}h1{font-size:clamp(30px,5vw,48px);margin-bottom:10px}h2{color:#4d3070}p{line-height:1.55}.card{background:#fff;border:2px solid #e9d8f3;border-radius:24px;padding:24px;margin:18px 0}label{display:block;font-weight:650;margin:14px 0 8px}input{font-size:18px;max-width:100%;padding:13px;background:#fcf6ff;border:2px dashed #c4a7d8;border-radius:14px}button{background:#68409b;color:white;border:0;border-radius:14px;padding:17px 22px;font-size:19px;font-weight:700;cursor:pointer;margin-top:16px}button:disabled{opacity:.5;cursor:wait}.notice{background:#fff2dc;border-left:5px solid #ba8b41;padding:15px;border-radius:12px}#preview{max-width:100%;max-height:360px;display:none;border-radius:12px}#scores{display:none}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e5d7f2;text-align:left;padding:13px}#status{white-space:pre-wrap;overflow-wrap:anywhere}small{color:#655673}a{color:#65418b}</style></head>
+<body><header>◷ MindDial AI</header><main><h1>Evaluate Your Clock Drawing</h1><p>Research prototype · Runs the four trained Python models directly in your browser. Your drawing and model files are processed on your device, not uploaded to our server.</p>
+<section class="card"><h2>1. Load your trained models</h2><p>For this experimental browser version, select the four original <code>.joblib</code> files from the MindDial AI Real Predictions ZIP. Each file must match its criterion.</p>
+<label>Closed circle model — circle.joblib</label><input id="circle" type="file" accept=".joblib">
+<label>All 12 numbers model — numbers.joblib</label><input id="numbers" type="file" accept=".joblib">
+<label>Number placement model — placement.joblib</label><input id="placement" type="file" accept=".joblib">
+<label>Hands model — hands.joblib</label><input id="hands" type="file" accept=".joblib">
+</section>
+<section class="card"><h2>2. Upload your clock drawing</h2><label for="drawing">Clock drawing image (PNG, JPG, WebP)</label><input id="drawing" type="file" accept="image/png,image/jpeg,image/webp"><p><img id="preview" alt="Uploaded clock drawing"></p><button id="run">Evaluate Drawing</button><p id="status" role="status">Ready to start. First analysis may take several minutes while Python libraries load.</p></section>
+<section class="card" id="scores"><h2>3. AI predictions</h2><table><thead><tr><th>Criterion</th><th>Score</th></tr></thead><tbody id="rows"></tbody></table><h2 id="total"></h2><p class="notice">Experimental cognitive screening only, not a diagnosis. A qualified reviewer must confirm the result. These are baseline SVM models, not the unverified higher-accuracy experimental candidates.</p></section>
+<p class="notice">This page uses public Pyodide and OpenCV.js content-delivery networks. It requires internet access for initial loading. Model files are not sent to a server. Browser support and output parity with the original OpenCV Python pipeline must be verified before research use.</p>
+<p><a href="./">Back to the Warm & Friendly home page</a></p></main>
+<script src="https://docs.opencv.org/4.x/opencv.js" async></script>
+<script type="module">
+import {loadPyodide} from 'https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs';
+const $=id=>document.getElementById(id),keys=['circle','numbers','placement','hands'],names=['Closed circle','All 12 numbers','Correct number placement','Hands pointing to 11 and 2'];
+let pyodide=null;
+$('drawing').onchange=()=>{const f=$('drawing').files[0];if(f){const url=URL.createObjectURL(f);$('preview').src=url;$('preview').style.display='block';$('preview').onload=()=>URL.revokeObjectURL(url)}};
+function cvReady(){return new Promise((resolve,reject)=>{const start=Date.now();const tick=()=>{if(window.cv && typeof cv.Mat==='function' && typeof cv.createCLAHE==='function')return resolve();if(Date.now()-start>120000)return reject(Error('OpenCV.js could not initialize or lacks CLAHE support.'));setTimeout(tick,300)};tick()})}
+async function preprocess(file){
+ await cvReady();const image=await createImageBitmap(file),canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;canvas.getContext('2d',{willReadFrequently:true}).drawImage(image,0,0);image.close();
+ let src,gray,resized,enhanced,clahe;
+ try{src=cv.imread(canvas);gray=new cv.Mat();cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);resized=new cv.Mat();cv.resize(gray,resized,new cv.Size(128,128),0,0,cv.INTER_AREA);enhanced=new cv.Mat();clahe=cv.createCLAHE(2.0,new cv.Size(8,8));clahe.apply(resized,enhanced);return new Uint8Array(enhanced.data)}
+ finally{for(const x of [src,gray,resized,enhanced,clahe])if(x&&x.delete)x.delete()}
+}
+async function boot(){
+ if(pyodide)return pyodide;
+ $('status').textContent='Loading Python scientific packages…';
+ pyodide=await loadPyodide();
+ await pyodide.loadPackage(['numpy','scikit-learn','scikit-image','joblib']);
+ pyodide.runPython(`import numpy as np, joblib
+from skimage.feature import hog
+from pathlib import Path
+def evaluate_gray(gray):
+    x=hog(np.asarray(gray,dtype=np.uint8).reshape(128,128),orientations=9,pixels_per_cell=(8,8),cells_per_block=(2,2),block_norm='L2-Hys').astype('float32').reshape(1,-1)
+    scores=[]
+    for key in ('circle','numbers','placement','hands'):
+        model=joblib.load('/tmp/'+key+'.joblib')
+        if model.n_features_in_ != x.shape[1]:
+            raise ValueError('Incompatible feature dimensions for '+key)
+        scores.append(int(model.predict(x)[0]))
+    return scores`);
+ return pyodide;
+}
+$('run').onclick=async()=>{
+ const f=$('drawing').files[0];if(!f){$('status').textContent='Choose a drawing first.';return}
+ if(f.size>8*1024*1024){$('status').textContent='Drawing must be under 8 MB.';return}
+ for(const key of keys)if(!$ (key).files[0]){$('status').textContent='Please select all four trained .joblib files.';return}
+ $('run').disabled=true;$('scores').style.display='none';
+ try{
+  const py=await boot();
+  $('status').textContent='Loading your trained model files…';
+  for(const key of keys)py.FS.writeFile('/tmp/'+key+'.joblib',new Uint8Array(await $(key).files[0].arrayBuffer()));
+  $('status').textContent='Preprocessing the image and running four real predictions…';
+  const gray=await preprocess(f);py.globals.set('input_gray',gray);
+  const result=py.runPython('evaluate_gray(input_gray)');const scores=result.toJs();result.destroy();
+  if(scores.length!==4||scores.some(s=>s!==0&&s!==1))throw Error('Model returned invalid scores');
+  const total=scores.reduce((a,b)=>a+b,0);
+  $('rows').innerHTML=scores.map((s,i)=>'<tr><td>'+names[i]+'</td><td><strong>'+s+' / 1</strong></td></tr>').join('');
+  $('total').textContent='Total: '+total+' / 4 · '+(total>=3?'PASS':'FAIL');
+  $('scores').style.display='block';$('status').textContent='Four trained models ran locally. Results require human validation.';
+ }catch(e){$('status').textContent='Evaluation could not complete: '+e.message;console.error(e)}
+ finally{$('run').disabled=false}
+};
+</script></body></html>
