@@ -21,11 +21,16 @@ jobs:
       - name: Prepare website
         run: |
           mkdir -p _site
-          cp static/index.html _site/index.html
+          cp static/browser.html _site/index.html
           cp static/browser.html _site/browser.html
-          if [ -d static/models ]; then cp -r static/models _site/models; fi
+          cp static/index.html _site/demo.html
           mkdir -p _site/models
+          test -f models/circle.joblib
+          test -f models/numbers.joblib
+          test -f models/placement.joblib
+          test -f models/hands.joblib
           cp models/*.joblib _site/models/
+          cp models/validation.json _site/models/validation.json
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
