@@ -28,7 +28,8 @@ jobs:
       - name: Prepare website
         run: |
           mkdir -p _site
-          cp static/browser.html _site/index.html
+          cp static/mindy.html _site/index.html
+          cp static/mindy.html _site/mindy.html
           cp static/browser.html _site/browser.html
           cp static/index.html _site/demo.html
           mkdir -p _site/models
