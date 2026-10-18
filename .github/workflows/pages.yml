@@ -23,6 +23,7 @@ jobs:
           mkdir -p _site
           cp static/index.html _site/index.html
           cp static/browser.html _site/browser.html
+          if [ -d static/models ]; then cp -r static/models _site/models; fi
           mkdir -p _site/models
           cp models/*.joblib _site/models/
           touch _site/.nojekyll
