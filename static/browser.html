@@ -11,20 +11,28 @@
 </details>
 <section class="card"><h2>1. Upload your clock drawing</h2><label for="drawing">Clock drawing image (PNG, JPG, WebP)</label><input id="drawing" type="file" accept="image/png,image/jpeg,image/webp"><p><img id="preview" alt="Uploaded clock drawing"></p><button id="run">Evaluate Drawing</button><p id="status" role="status">Ready to start. First analysis may take several minutes while Python libraries load.</p></section>
 <section class="card" id="scores"><h2>2. AI predictions</h2><table><thead><tr><th>Criterion</th><th>Score</th></tr></thead><tbody id="rows"></tbody></table><h2 id="total"></h2><p class="notice">Experimental cognitive screening only, not a diagnosis. A qualified reviewer must confirm the result. These are baseline SVM models, not the unverified higher-accuracy experimental candidates. PASS/FAIL is a research scoring convention, not a clinical interpretation.</p></section>
-<p class="notice">This page uses public Pyodide and OpenCV.js content-delivery networks. It requires internet access for initial loading. Model files are not sent to a server. Browser support and output parity with the original OpenCV Python pipeline must be verified before research use.</p>
+<p class="notice">This page uses the public Pyodide content-delivery network. It requires internet access for initial loading. Model files are not sent to a server. The browser uses scikit-image preprocessing as an approximation of the original OpenCV pipeline; prediction parity has not yet been verified.</p>
 <p><a href="./demo.html">See the original Warm & Friendly demo</a></p></main>
-<script src="https://docs.opencv.org/4.x/opencv.js" async></script>
 <script type="module">
 import {loadPyodide} from 'https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs';
 const $=id=>document.getElementById(id),keys=['circle','numbers','placement','hands'],names=['Closed circle','All 12 numbers','Correct number placement','Hands pointing to 11 and 2'];
 let pyodide=null;
 $('drawing').onchange=()=>{const f=$('drawing').files[0];if(f){const url=URL.createObjectURL(f);$('preview').src=url;$('preview').style.display='block';$('preview').onload=()=>URL.revokeObjectURL(url)}};
-function cvReady(){return new Promise((resolve,reject)=>{const start=Date.now();const tick=()=>{if(window.cv && typeof cv.Mat==='function' && typeof cv.createCLAHE==='function')return resolve();if(Date.now()-start>120000)return reject(Error('OpenCV.js could not initialize or lacks CLAHE support.'));setTimeout(tick,300)};tick()})}
 async function preprocess(file){
- await cvReady();const image=await createImageBitmap(file),canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;canvas.getContext('2d',{willReadFrequently:true}).drawImage(image,0,0);image.close();
- let src,gray,resized,enhanced,clahe;
- try{src=cv.imread(canvas);gray=new cv.Mat();cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);resized=new cv.Mat();cv.resize(gray,resized,new cv.Size(128,128),0,0,cv.INTER_AREA);enhanced=new cv.Mat();clahe=cv.createCLAHE(2.0,new cv.Size(8,8));clahe.apply(resized,enhanced);return new Uint8Array(enhanced.data)}
- finally{for(const x of [src,gray,resized,enhanced,clahe])if(x&&x.delete)x.delete()}
+ // Browser-native grayscale extraction; CLAHE is performed in Pyodide.
+ const bitmap=await createImageBitmap(file);
+ try{
+   const canvas=document.createElement('canvas');
+   canvas.width=bitmap.width;canvas.height=bitmap.height;
+   const ctx=canvas.getContext('2d',{willReadFrequently:true});
+   ctx.drawImage(bitmap,0,0);
+   const rgba=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+   const gray=new Uint8Array(canvas.width*canvas.height);
+   for(let i=0,j=0;i<rgba.length;i+=4,j++){
+     gray[j]=Math.round(.299*rgba[i]+.587*rgba[i+1]+.114*rgba[i+2]);
+   }
+   return {gray,width:canvas.width,height:canvas.height};
+ }finally{bitmap.close()}
 }
 async function boot(){
  if(pyodide)return pyodide;
@@ -33,9 +41,14 @@ async function boot(){
  await pyodide.loadPackage(['numpy','scikit-learn','scikit-image','joblib']);
  pyodide.runPython(`import numpy as np, joblib
 from skimage.feature import hog
-from pathlib import Path
-def evaluate_gray(gray):
-    x=hog(np.asarray(gray,dtype=np.uint8).reshape(128,128),orientations=9,pixels_per_cell=(8,8),cells_per_block=(2,2),block_norm='L2-Hys').astype('float32').reshape(1,-1)
+from skimage.transform import resize
+from skimage.exposure import equalize_adapthist
+def evaluate_gray(gray, width, height):
+    img=np.asarray(gray,dtype=np.uint8).reshape(height,width)
+    # Approximation of OpenCV INTER_AREA and CLAHE; browser parity is not yet established.
+    img=resize(img,(128,128),order=1,anti_aliasing=True,preserve_range=True).astype(np.uint8)
+    img=(equalize_adapthist(img,clip_limit=0.02,kernel_size=(16,16))*255).clip(0,255).astype(np.uint8)
+    x=hog(img,orientations=9,pixels_per_cell=(8,8),cells_per_block=(2,2),block_norm='L2-Hys').astype('float32').reshape(1,-1)
     scores=[]
     for key in ('circle','numbers','placement','hands'):
         model=joblib.load('/tmp/'+key+'.joblib')
@@ -64,8 +77,8 @@ $('run').onclick=async()=>{
    py.FS.writeFile('/tmp/'+key+'.joblib',new Uint8Array(buffer));
   }
   $('status').textContent='Preprocessing the image and running four real predictions…';
-  const gray=await preprocess(f);py.globals.set('input_gray',gray);
-  const result=py.runPython('evaluate_gray(input_gray)');const scores=result.toJs();result.destroy();
+  const img=await preprocess(f);py.globals.set('input_gray',img.gray);py.globals.set('input_width',img.width);py.globals.set('input_height',img.height);
+  const result=py.runPython('evaluate_gray(input_gray,input_width,input_height)');const scores=result.toJs();result.destroy();
   if(scores.length!==4||scores.some(s=>s!==0&&s!==1))throw Error('Model returned invalid scores');
   const total=scores.reduce((a,b)=>a+b,0);
   $('rows').innerHTML=scores.map((s,i)=>'<tr><td>'+names[i]+'</td><td><strong>'+s+' / 1</strong></td></tr>').join('');
