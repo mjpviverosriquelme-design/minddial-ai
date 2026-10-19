@@ -23,8 +23,8 @@ jobs:
           mkdir -p _site
           cp static/mindy.html _site/index.html
           cp static/mindy.html _site/mindy.html
-          cp static/browser.html _site/browser.html
-          cp static/index.html _site/demo.html
+          cp static/mindy.html _site/browser.html
+          cp static/mindy.html _site/demo.html
           cp static/evaluator.js _site/evaluator.js
           cp -r models _site/models
           touch _site/.nojekyll

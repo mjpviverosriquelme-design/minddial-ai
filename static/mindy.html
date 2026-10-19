@@ -65,7 +65,7 @@ $('continue').onclick=async()=>{
  $('continue').disabled=true;
  try{
   $('status').textContent=t("Cargando la IA. La primera vez puede tardar varios minutos…");
-  const {evaluateDrawing}=await import('./evaluator.js');
+  const {evaluateDrawing}=await import('./evaluator.js?v=ai-only-2');
   const evaluation=await evaluateDrawing(drawing,message=>{if(version===analysisVersion)$('status').textContent=message==='Loading Python scientific packages…'?t("Cargando la IA. La primera vez puede tardar varios minutos…"):t(message);});
   if(version!==analysisVersion)return;
   prepared=drawing;

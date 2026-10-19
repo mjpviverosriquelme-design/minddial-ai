@@ -1,90 +1,91 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MindDial AI Beta — Clock Drawing Evaluation</title>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MindDial AI BETA · Dibuja tu reloj</title>
 <style>
-:root{font-family:system-ui,sans-serif;color:#39244c;background:#fffaf4;font-size:18px}*{box-sizing:border-box}body{margin:0}header{background:#604184;color:#fff;padding:20px max(18px,calc((100vw - 1000px)/2));font-size:24px;font-weight:bold}main{max-width:1000px;margin:auto;padding:28px 18px}h1{font-size:clamp(30px,5vw,48px);margin-bottom:10px}h2{color:#4d3070}p{line-height:1.55}.card{background:#fff;border:2px solid #e9d8f3;border-radius:24px;padding:24px;margin:18px 0}label{display:block;font-weight:650;margin:14px 0 8px}input{font-size:18px;max-width:100%;padding:13px;background:#fcf6ff;border:2px dashed #c4a7d8;border-radius:14px}button{background:#68409b;color:white;border:0;border-radius:14px;padding:17px 22px;font-size:19px;font-weight:700;cursor:pointer;margin-top:16px}button:disabled{opacity:.5;cursor:wait}.notice{background:#fff2dc;border-left:5px solid #ba8b41;padding:15px;border-radius:12px}#preview{max-width:100%;max-height:360px;display:none;border-radius:12px}#scores{display:none}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e5d7f2;text-align:left;padding:13px}#status{white-space:pre-wrap;overflow-wrap:anywhere}small{color:#655673}a{color:#65418b}</style></head>
-<body><header>◷ MindDial AI</header><main><h1>MindDial AI · Beta</h1><h2>Evaluate Your Clock Drawing</h2><p>Research prototype · Runs the four trained Python models directly in your browser. The included models download to your device. Your drawing and any replacement model files are processed locally, not uploaded to our server.</p>
-<details class="card"><summary style="cursor:pointer;font-weight:700">Advanced: replace the four models (optional)</summary><h2>Experimental model files</h2><p>For this experimental browser version, the four baseline models are included and load automatically. You can optionally select replacement <code>.joblib</code> files from a trusted source. These models are experimental and are not clinically validated.</p>
-<label>Closed circle model — circle.joblib</label><input id="circle" type="file" accept=".joblib">
-<label>All 12 numbers model — numbers.joblib</label><input id="numbers" type="file" accept=".joblib">
-<label>Number placement model — placement.joblib</label><input id="placement" type="file" accept=".joblib">
-<label>Hands model — hands.joblib</label><input id="hands" type="file" accept=".joblib">
-</details>
-<section class="card"><h2>1. Upload your clock drawing</h2><label for="drawing">Clock drawing image (PNG, JPG, WebP)</label><input id="drawing" type="file" accept="image/png,image/jpeg,image/webp"><p><img id="preview" alt="Uploaded clock drawing"></p><button id="run">Evaluate Drawing</button><p id="status" role="status">Ready to start. First analysis may take several minutes while Python libraries load.</p></section>
-<section class="card" id="scores"><h2>2. AI predictions</h2><table><thead><tr><th>Criterion</th><th>Score</th></tr></thead><tbody id="rows"></tbody></table><h2 id="total"></h2><p class="notice">Experimental cognitive screening only, not a diagnosis. A qualified reviewer must confirm the result. These are baseline SVM models, not the unverified higher-accuracy experimental candidates. PASS/FAIL is a research scoring convention, not a clinical interpretation.</p></section>
-<p class="notice">This page uses the public Pyodide content-delivery network. It requires internet access for initial loading. Model files are not sent to a server. The browser uses scikit-image preprocessing as an approximation of the original OpenCV pipeline; prediction parity has not yet been verified.</p>
-<p><a href="./demo.html">See the original Warm & Friendly demo</a></p></main>
-<script type="module">
-import {loadPyodide} from 'https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.mjs';
-const $=id=>document.getElementById(id),keys=['circle','numbers','placement','hands'],names=['Closed circle','All 12 numbers','Correct number placement','Hands pointing to 11 and 2'];
-let pyodide=null;
-$('drawing').onchange=()=>{const f=$('drawing').files[0];if(f){const url=URL.createObjectURL(f);$('preview').src=url;$('preview').style.display='block';$('preview').onload=()=>URL.revokeObjectURL(url)}};
-async function preprocess(file){
- // Browser-native grayscale extraction; CLAHE is performed in Pyodide.
- const bitmap=await createImageBitmap(file);
- try{
-   const canvas=document.createElement('canvas');
-   canvas.width=bitmap.width;canvas.height=bitmap.height;
-   const ctx=canvas.getContext('2d',{willReadFrequently:true});
-   ctx.drawImage(bitmap,0,0);
-   const rgba=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-   const gray=new Uint8Array(canvas.width*canvas.height);
-   for(let i=0,j=0;i<rgba.length;i+=4,j++){
-     gray[j]=Math.round(.299*rgba[i]+.587*rgba[i+1]+.114*rgba[i+2]);
-   }
-   return {gray,width:canvas.width,height:canvas.height};
- }finally{bitmap.close()}
-}
-async function boot(){
- if(pyodide)return pyodide;
- $('status').textContent='Loading Python scientific packages…';
- pyodide=await loadPyodide();
- await pyodide.loadPackage(['numpy','scikit-learn','scikit-image','joblib']);
- pyodide.runPython(`import numpy as np, joblib
-from skimage.feature import hog
-from skimage.transform import resize
-from skimage.exposure import equalize_adapthist
-def evaluate_gray(gray, width, height):
-    img=np.asarray(gray,dtype=np.uint8).reshape(height,width)
-    # Approximation of OpenCV INTER_AREA and CLAHE; browser parity is not yet established.
-    img=resize(img,(128,128),order=1,anti_aliasing=True,preserve_range=True).astype(np.uint8)
-    img=(equalize_adapthist(img,clip_limit=0.02,kernel_size=(16,16))*255).clip(0,255).astype(np.uint8)
-    x=hog(img,orientations=9,pixels_per_cell=(8,8),cells_per_block=(2,2),block_norm='L2-Hys').astype('float32').reshape(1,-1)
-    scores=[]
-    for key in ('circle','numbers','placement','hands'):
-        model=joblib.load('/tmp/'+key+'.joblib')
-        if model.n_features_in_ != x.shape[1]:
-            raise ValueError('Incompatible feature dimensions for '+key)
-        scores.append(int(model.predict(x)[0]))
-    return scores`);
- return pyodide;
-}
-$('run').onclick=async()=>{
- const f=$('drawing').files[0];if(!f){$('status').textContent='Choose a drawing first.';return}
- if(f.size>8*1024*1024){$('status').textContent='Drawing must be under 8 MB.';return}
+:root{font-family:Arial,Helvetica,sans-serif;color:#12375b;background:#fff9f1;font-size:20px}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 88% 20%,#fff0d7,transparent 38%),#fff9f1}header{background:#fffdf9;border-bottom:1px solid #f0dfcc;padding:16px max(20px,calc((100vw - 1380px)/2));display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}.brand{display:flex;align-items:center;gap:13px}.logo{width:55px;height:55px;border-radius:50%;background:#5eb6bd;display:grid;place-items:center;color:white;font-size:30px}h1{font-size:clamp(29px,3vw,43px);margin:0}h2{font-size:clamp(30px,3.5vw,50px);line-height:1.12;margin:0 0 22px}h3{font-size:25px;margin:0 0 12px}.beta{background:#fa8e7d;color:white;font-size:15px;padding:5px 10px;border-radius:12px;vertical-align:middle}.subtitle{font-size:16px;margin:3px 0 0}button,.file-button{font:700 20px Arial,sans-serif;min-height:57px;border:0;border-radius:18px;padding:14px 22px;cursor:pointer;touch-action:manipulation}button:focus-visible,.file-button:focus-visible,input:focus-visible{outline:4px solid #ffb949;outline-offset:3px}.primary{background:#07567a;color:white}.secondary{background:#eaf2f8;color:#12375b}.active{background:#07567a;color:#fff}.nav{background:transparent;color:#12375b;font-size:18px}.wrap{max-width:1460px;margin:auto;padding:32px 24px}.hero{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(330px,1.2fr) minmax(240px,.9fr);gap:25px;align-items:center}.intro p{font-size:clamp(21px,2vw,27px);line-height:1.5;color:#536d83}.tip{padding:20px;background:#fff0c6;border-radius:24px;font-size:21px;margin-top:24px}.workspace{background:#fff;border-radius:32px;padding:18px;box-shadow:0 9px 32px #b28f6930}.tabs{display:flex;gap:8px;margin-bottom:17px}.tabs button{flex:1}.canvas-wrap{position:relative;border:2px dashed #c7d9e9;border-radius:18px;background:#fff;overflow:hidden;aspect-ratio:1/1}.canvas-wrap canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}.canvas-hint{pointer-events:none;position:absolute;inset:0;display:grid;place-items:center;color:#688098;font-size:23px;font-weight:700;text-align:center;padding:20px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.actions button{flex:1}.upload{min-height:350px;display:grid;place-items:center;text-align:center;background:#fffaf4;border:2px dashed #c7d9e9;border-radius:18px;padding:24px}.upload img{max-width:100%;max-height:300px;object-fit:contain}.file-button{display:inline-block;background:#eaf2f8;cursor:pointer}.file-button input{position:absolute;width:1px;height:1px;opacity:0}.mindy{position:relative;text-align:center;align-self:end}.bubble{background:white;border:3px solid #ffc77c;border-radius:50px;padding:19px 14px;font-weight:700;font-size:23px;line-height:1.35;margin-bottom:-4px;position:relative;z-index:1}.mindy svg{width:100%;max-width:350px;display:block;margin:auto;filter:drop-shadow(0 8px 9px #a8795140)}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:17px;margin:26px 0}.step{background:#ecf5fb;border-radius:24px;padding:22px;display:flex;gap:14px;align-items:flex-start}.num{background:#286485;color:white;border-radius:50%;padding:11px 17px;font-weight:bold}.step p{margin:6px 0 0;color:#516b81;font-size:17px;line-height:1.45}.notice{background:#eaf4fb;border-radius:22px;padding:18px 22px;font-size:17px}.hidden{display:none!important}#status{font-size:20px;font-weight:700;line-height:1.4;margin:16px 0 0}#result{padding:20px;background:#fff1d8;border-radius:18px;margin-top:16px}#result strong{font-size:28px}#result p{margin:8px 0;font-size:17px}@media(max-width:1050px){.hero{grid-template-columns:1fr 1fr}.intro{grid-column:1/-1}.mindy{align-self:center}.steps{grid-template-columns:1fr}}@media(max-width:680px){header{padding:14px}.wrap{padding:22px 14px}.hero{display:flex;flex-direction:column;align-items:stretch}.mindy{display:flex;flex-direction:row-reverse;align-items:center;gap:10px}.mindy svg{width:45%;min-width:110px}.bubble{font-size:18px;flex:1;padding:12px}.actions button{font-size:17px;padding:10px}.step{padding:17px}.canvas-wrap{aspect-ratio:1/1}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+@keyframes talkMindy{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.65)}}@keyframes waveMindy{0%,100%{transform:rotate(0deg)}50%{transform:rotate(12deg)}}.speaking #mindyMouth{transform-box:fill-box;transform-origin:center;animation:talkMindy .3s ease-in-out infinite}.speaking #mindyWave{transform-origin:276px 285px;animation:waveMindy .65s ease-in-out infinite}@media(prefers-reduced-motion:reduce){.speaking #mindyMouth,.speaking #mindyWave{animation:none}}</style></head>
+<body><header><div class="brand"><span class="logo" aria-hidden="true">◷</span><div><h1>MindDial AI <span class="beta">BETA</span></h1><p class="subtitle">Evaluación experimental del dibujo del reloj</p></div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label for="language">Español / English</label><select id="language" style="font-size:20px;padding:12px;border-radius:12px;min-height:52px"><option value="es">Español</option><option value="en">English</option></select><button class="nav" id="speak" type="button">🔊 Escuchar instrucciones</button></div></header>
+<main class="wrap"><div class="hero"><section class="intro"><h2>Dibuja un reloj</h2><p>Dibuja un reloj con los números del 1 al 12. Coloca las manecillas marcando las <strong>11:10</strong>.</p><div class="tip">Hazlo con calma.<br><strong>No hay tiempo límite.</strong></div></section>
+<section class="workspace" aria-label="Área para dibujar o subir un reloj"><div class="tabs"><button type="button" class="active" id="drawTab" aria-pressed="true">✎ Dibujar</button><button type="button" class="secondary" id="uploadTab" aria-pressed="false">↑ Subir imagen</button></div>
+<div id="drawArea" class="canvas-wrap"><canvas id="clock" width="700" height="700" aria-label="Dibuja tu reloj con el dedo o el mouse"></canvas><div class="canvas-hint" id="hint">Dibuja aquí tu reloj</div></div>
+<div id="uploadArea" class="upload hidden"><div><label class="file-button" for="upload">Elegir imagen<input id="upload" type="file" accept="image/png,image/jpeg,image/webp"></label><p id="fileInfo">PNG, JPG o WebP · Máximo 8 MB</p><img id="preview" class="hidden" alt="Vista previa del reloj cargado"></div></div>
+<div class="actions"><button type="button" id="undo" class="secondary">Deshacer</button><button type="button" id="clear" class="secondary">Borrar</button><button type="button" id="continue" class="primary">Evaluar con IA →</button></div><p id="status" role="status" aria-live="polite"></p><section id="result" class="hidden" aria-live="polite"><strong id="aiOutcome">Resultado de IA</strong><p id="aiScore"></p><p>Resultado experimental. No es un diagnóstico médico.</p><button type="button" id="download" class="secondary">Descargar mi dibujo</button></section></section>
+<aside class="mindy"><div class="bubble" id="mindyText">¡Hola! Soy Mindy.<br>Te acompañaré en este proceso.</div>
+<svg viewBox="0 0 360 390" role="img" aria-label="Mindy chibi, cara redonda, ojos pequeños, cabello gris ondulado y chaqueta turquesa"><defs><linearGradient id="mHair" x2=".8" y2="1"><stop stop-color="#eee4d7"/><stop offset=".6" stop-color="#aaa09c"/><stop offset="1" stop-color="#857c7c"/></linearGradient><linearGradient id="mCoat" x2="1" y2="1"><stop stop-color="#69c8c2"/><stop offset="1" stop-color="#198e97"/></linearGradient></defs><ellipse cx="181" cy="371" rx="143" ry="13" fill="#dcbda5" opacity=".45"/><path d="M49 360 Q45 279 115 267 Q68 218 73 154 Q65 59 177 48 Q286 40 297 154 Q306 223 257 269 Q320 291 320 360Z" fill="url(#mHair)" stroke="#91817c" stroke-width="3"/><path d="M37 368 Q45 288 131 276 L228 276 Q312 289 323 368Z" fill="url(#mCoat)" stroke="#257f87" stroke-width="4"/><path d="M147 242 L145 290 Q182 315 215 290 L214 242" fill="#f2c9ad"/><ellipse cx="181" cy="170" rx="109" ry="111" fill="#f4cdb2" stroke="#bd9180" stroke-width="3"/><path d="M77 154 Q66 88 118 62 Q183 23 248 65 Q293 91 287 157 Q267 127 250 111 Q199 137 163 105 Q119 147 77 154Z" fill="url(#mHair)" stroke="#91817c" stroke-width="3"/><path d="M83 162 Q62 219 109 252 M277 161 Q297 223 252 252" fill="none" stroke="#c5b6ad" stroke-width="16" stroke-linecap="round"/><ellipse cx="144" cy="184" rx="8" ry="10" fill="#503e3c"/><ellipse cx="218" cy="184" rx="8" ry="10" fill="#503e3c"/><circle cx="146" cy="180" r="2.3" fill="white"/><circle cx="220" cy="180" r="2.3" fill="white"/><g fill="none" stroke="#3c3435" stroke-width="5"><rect x="105" y="158" width="70" height="53" rx="24"/><rect x="187" y="158" width="70" height="53" rx="24"/><path d="M175 172 Q182 166 187 172 M104 174 L88 168 M257 174 L273 168"/></g><path d="M180 192 Q172 218 185 219" fill="none" stroke="#bd8b7d" stroke-width="3"/><path id="mindyMouth" d="M154 237 Q181 256 209 237" fill="none" stroke="#b45f65" stroke-width="5" stroke-linecap="round"/><circle cx="117" cy="223" r="12" fill="#ee9e96" opacity=".48"/><circle cx="248" cy="223" r="12" fill="#ee9e96" opacity=".48"/><path d="M116 286 Q75 311 77 363 M247 286 Q288 312 287 363" fill="none" stroke="#218e96" stroke-width="23" stroke-linecap="round"/><path d="M155 286 L180 316 L209 286" fill="#fff2e7"/><circle cx="181" cy="334" r="12" fill="#f6c76d" stroke="#c99c4d" stroke-width="3"/><g id="mindyWave" transform="rotate(0 276 285)"><path d="M267 312 Q287 289 293 272 L307 229 Q314 217 320 228 L316 255 L324 221 Q330 209 336 219 L331 257 L340 235 Q349 227 352 240 Q349 271 327 300 L309 325" fill="#f3c9ad" stroke="#b98272" stroke-width="3" stroke-linejoin="round"/></g></svg></aside></div>
+<div class="steps"><div class="step"><span class="num">1</span><div><h3>Dibuja o sube tu reloj</h3><p>Usa el área de dibujo o selecciona una imagen.</p></div></div><div class="step"><span class="num">2</span><div><h3>Evaluación con IA</h3><p>Cuatro modelos experimentales analizan tu reloj.</p></div></div><div class="step"><span class="num">3</span><div><h3>Consulta tu resultado</h3><p>La IA muestra la puntuación experimental del dibujo.</p></div></div></div>
+<footer class="notice">MindDial AI es un prototipo de investigación. No proporciona diagnósticos médicos. La evaluación se ejecuta en tu dispositivo. No envía dibujos. El procesamiento del navegador es aproximado y todavía no se ha verificado su equivalencia con el original.</footer></main>
+<script>
 
- $('run').disabled=true;$('scores').style.display='none';
+const translations={"MindDial AI BETA · Dibuja tu reloj":"MindDial AI BETA · Draw your clock","Evaluación experimental del dibujo del reloj":"Experimental clock drawing evaluation","🔊 Escuchar instrucciones":"🔊 Listen to instructions","Dibuja un reloj":"Draw a clock","Dibuja un reloj con los números del 1 al 12. Coloca las manecillas marcando las ":"Draw a clock with numbers 1 to 12. Set the hands to ","Hazlo con calma.":"Take your time.","No hay tiempo límite.":"There is no time limit.","Área para dibujar o subir un reloj":"Draw or upload a clock","✎ Dibujar":"✎ Draw","↑ Subir imagen":"↑ Upload image","Dibuja tu reloj con el dedo o el mouse":"Draw your clock with your finger or mouse","Dibuja aquí tu reloj":"Draw your clock here","Elegir imagen":"Choose image","PNG, JPG o WebP · Máximo 8 MB":"PNG, JPG or WebP · Maximum 8 MB","Vista previa del reloj cargado":"Preview of your uploaded clock","Deshacer":"Undo","Borrar":"Clear","Evaluar con IA →":"Evaluate with AI →","Resultado de IA":"AI result","Resultado experimental. No es un diagnóstico médico.":"Experimental result. Not a medical diagnosis.","Descargar mi dibujo":"Download my drawing","¡Hola! Soy Mindy.":"Hi! I'm Mindy.","Te acompañaré en este proceso.":"I'll guide you through this.","Mindy chibi, cara redonda, ojos pequeños, cabello gris ondulado y chaqueta turquesa":"Mindy, a friendly character with glasses, wavy gray hair and a turquoise jacket","Dibuja o sube tu reloj":"Draw or upload your clock","Usa el área de dibujo o selecciona una imagen.":"Use the drawing area or choose an image.","Evaluación con IA":"AI evaluation","Cuatro modelos experimentales analizan tu reloj.":"Four experimental models analyze your clock.","Consulta tu resultado":"See your result","La IA muestra la puntuación experimental del dibujo.":"AI displays the experimental drawing score.","MindDial AI es un prototipo de investigación. No proporciona diagnósticos médicos. La evaluación se ejecuta en tu dispositivo. No envía dibujos. El procesamiento del navegador es aproximado y todavía no se ha verificado su equivalencia con el original.":"MindDial AI is a research prototype, not a medical diagnosis. Evaluation runs on your device. Drawings are not uploaded. Browser preprocessing is approximate; equivalence with the original pipeline has not been verified.","Elige una imagen PNG, JPG o WebP de hasta 8 MB.":"Choose a PNG, JPG or WebP image up to 8 MB.","Primero dibuja tu reloj.":"Draw your clock first.","Primero selecciona una imagen.":"Choose an image first.","No se pudo preparar el dibujo.":"Could not prepare the drawing.","Cargando la IA. La primera vez puede tardar varios minutos…":"Loading AI. The first time may take several minutes…","Cargando los cuatro modelos…":"Loading the four models…","La IA está evaluando tu reloj…":"AI is evaluating your clock…","PASÓ · Experimental":"PASS · Experimental","NO PASÓ · Experimental":"FAIL · Experimental"," de 4 puntos. Criterio del prototipo: 3 o 4 puntos = pasó.":" out of 4 points. Prototype rule: 3 or 4 points = pass.","Evaluación con IA completada.":"AI evaluation complete.","La evaluación terminó. Obtuviste ":"Evaluation complete. You scored "," de cuatro puntos. Es un resultado experimental, no un diagnóstico médico.":" out of four points. This is an experimental result, not a medical diagnosis.","No se pudo completar la evaluación. Comprueba tu conexión y vuelve a intentarlo.":"Could not complete the evaluation. Check your connection and try again.","Hola, soy Mindy. Dibuja un reloj con los números del uno al doce. Coloca las manecillas marcando las once y diez. Hazlo con calma. No hay tiempo límite.":"Hi, I'm Mindy. Draw a clock with numbers one to twelve. Set the hands to eleven ten. Take your time. There is no time limit."};
+let language='es',lastTotal=null;
+try{language=localStorage.getItem('minddial-language')==='en'?'en':'es';}catch{}
+function t(text){return language==='en'?(translations[text]||text):text;}
+const translatedNodes=[];
+const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+while(walker.nextNode()){const node=walker.currentNode;if(node.parentElement.closest('script,style'))continue;if(translations[node.textContent])translatedNodes.push([node,node.textContent]);}
+const translatedAttrs=[];
+document.querySelectorAll('[aria-label],[alt]').forEach(el=>{for(const key of ['aria-label','alt']){const value=el.getAttribute(key);if(translations[value])translatedAttrs.push([el,key,value]);}});
+function applyLanguage(){
+ document.documentElement.lang=language;document.title=t('MindDial AI BETA · Dibuja tu reloj');
+ translatedNodes.forEach(([node,text])=>{node.textContent=t(text)});
+ translatedAttrs.forEach(([el,key,text])=>el.setAttribute(key,t(text)));
+ $('language').value=language;
+ if(file)$('fileInfo').textContent=file.name;
+ if(lastTotal!==null){
+  $('aiOutcome').textContent=t(lastTotal>=3?'PASÓ · Experimental':'NO PASÓ · Experimental');
+  $('aiScore').textContent=lastTotal+t(' de 4 puntos. Criterio del prototipo: 3 o 4 puntos = pasó.');
+ }
+ $('status').textContent=$('continue').disabled?t('Cargando la IA. La primera vez puede tardar varios minutos…'):'';
+ $('mindyText').textContent=t('¡Hola! Soy Mindy.')+' '+t('Te acompañaré en este proceso.');
+ if('speechSynthesis' in window)speechSynthesis.cancel();
+ document.querySelector('.mindy').classList.remove('speaking');
+ try{localStorage.setItem('minddial-language',language)}catch{}
+}
+
+const $=id=>document.getElementById(id),canvas=$('clock'),ctx=canvas.getContext('2d');let strokes=[],current=null,mode='draw',file=null,prepared=null;
+function paint(){ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.strokeStyle='#173b59';ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';for(const stroke of strokes){ctx.beginPath();stroke.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));if(stroke.length===1){ctx.lineTo(stroke[0].x+.1,stroke[0].y+.1)}ctx.stroke()}}
+function point(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}
+function resetResult(){$('result').classList.add('hidden');$('status').textContent='';prepared=null;lastTotal=null}
+canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);current=[point(e)];strokes.push(current);$('hint').classList.add('hidden');resetResult();paint()});
+canvas.addEventListener('pointermove',e=>{if(!current)return;current.push(point(e));paint()});
+function finish(){current=null}canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointercancel',finish);
+function setMode(m){mode=m;$('drawArea').classList.toggle('hidden',m!=='draw');$('uploadArea').classList.toggle('hidden',m!=='upload');$('drawTab').className=m==='draw'?'active':'secondary';$('uploadTab').className=m==='upload'?'active':'secondary';$('drawTab').setAttribute('aria-pressed',String(m==='draw'));$('uploadTab').setAttribute('aria-pressed',String(m==='upload'));resetResult()}
+$('drawTab').onclick=()=>setMode('draw');$('uploadTab').onclick=()=>setMode('upload');
+$('undo').onclick=()=>{if(mode==='draw'){strokes.pop();paint();$('hint').classList.toggle('hidden',strokes.length>0)}else{file=null;$('upload').value='';$('preview').classList.add('hidden');$('fileInfo').textContent=t("PNG, JPG o WebP · Máximo 8 MB")}resetResult()};
+$('clear').onclick=()=>{if(mode==='draw'){strokes=[];paint();$('hint').classList.remove('hidden')}else{file=null;$('upload').value='';$('preview').removeAttribute('src');$('preview').classList.add('hidden');$('fileInfo').textContent=t("PNG, JPG o WebP · Máximo 8 MB")}resetResult()};
+$('upload').onchange=()=>{resetResult();const f=$('upload').files[0];if(!f)return;if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>8*1024*1024){$('status').textContent=t("Elige una imagen PNG, JPG o WebP de hasta 8 MB.");$('upload').value='';file=null;return}file=f;const reader=new FileReader();reader.onload=()=>{$('preview').src=reader.result;$('preview').classList.remove('hidden');$('fileInfo').textContent=f.name};reader.readAsDataURL(f)};
+let analysisVersion=0;
+const originalResetResult=resetResult;
+resetResult=function(){analysisVersion++;originalResetResult();};
+$('continue').onclick=async()=>{
+ if(mode==='draw'&&!strokes.length){$('status').textContent=t("Primero dibuja tu reloj.");return}
+ if(mode==='upload'&&!file){$('status').textContent=t("Primero selecciona una imagen.");return}
+ resetResult();const version=analysisVersion;
+ const drawing=mode==='draw'?await new Promise(resolve=>canvas.toBlob(resolve,'image/png')):file;
+ if(!drawing){$('status').textContent=t("No se pudo preparar el dibujo.");return}
+ $('continue').disabled=true;
  try{
-  const py=await boot();
-  $('status').textContent='Loading your trained model files…';
-  for(const key of keys){
-   const local=$(key).files[0];
-   let buffer;
-   if(local){buffer=await local.arrayBuffer()}else{
-    const response=await fetch(new URL('models/'+key+'.joblib',location.href));
-    if(!response.ok)throw Error('Could not load '+key+' model: HTTP '+response.status);
-    buffer=await response.arrayBuffer();
-   }
-   py.FS.writeFile('/tmp/'+key+'.joblib',new Uint8Array(buffer));
-  }
-  $('status').textContent='Preprocessing the image and running four real predictions…';
-  const img=await preprocess(f);py.globals.set('input_gray',img.gray);py.globals.set('input_width',img.width);py.globals.set('input_height',img.height);
-  const result=py.runPython('evaluate_gray(input_gray,input_width,input_height)');const scores=result.toJs();result.destroy();
-  if(scores.length!==4||scores.some(s=>s!==0&&s!==1))throw Error('Model returned invalid scores');
-  const total=scores.reduce((a,b)=>a+b,0);
-  $('rows').innerHTML=scores.map((s,i)=>'<tr><td>'+names[i]+'</td><td><strong>'+s+' / 1</strong></td></tr>').join('');
-  $('total').textContent='Total: '+total+' / 4 · '+(total>=3?'PASS':'FAIL');
-  $('scores').style.display='block';$('status').textContent='Four trained models ran locally. Results require human validation.';
- }catch(e){$('status').textContent='Evaluation could not complete: '+e.message;console.error(e)}
- finally{$('run').disabled=false}
+  $('status').textContent=t("Cargando la IA. La primera vez puede tardar varios minutos…");
+  const {evaluateDrawing}=await import('./evaluator.js?v=ai-only-2');
+  const evaluation=await evaluateDrawing(drawing,message=>{if(version===analysisVersion)$('status').textContent=message==='Loading Python scientific packages…'?t("Cargando la IA. La primera vez puede tardar varios minutos…"):t(message);});
+  if(version!==analysisVersion)return;
+  prepared=drawing;
+  const total=evaluation.scores.reduce((sum,value)=>sum+value,0);
+  lastTotal=total;
+  $('aiOutcome').textContent=total>=3?t("PASÓ · Experimental"):t("NO PASÓ · Experimental");
+  $('aiScore').textContent=total+t(" de 4 puntos. Criterio del prototipo: 3 o 4 puntos = pasó.");
+  $('result').classList.remove('hidden');
+  $('status').textContent=t("Evaluación con IA completada.");
+  mindySay(t("La evaluación terminó. Obtuviste ")+total+t(" de cuatro puntos. Es un resultado experimental, no un diagnóstico médico."));
+  $('result').scrollIntoView({behavior:'smooth',block:'nearest'});
+ }catch(error){
+  if(version===analysisVersion)$('status').textContent=t('No se pudo completar la evaluación. Comprueba tu conexión y vuelve a intentarlo.');
+ }finally{$('continue').disabled=false;}
 };
+$('download').onclick=()=>{if(!prepared)return;const a=document.createElement('a');if(typeof prepared==='string'){a.href=prepared;a.download='minddial-reloj.png';a.click()}else{const url=URL.createObjectURL(prepared);a.href=url;a.download=prepared.name||'minddial-clock.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}};
+function mindySay(message){$('mindyText').textContent=message;if(!('speechSynthesis'in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(message);u.lang=language==='en'?'en-US':'es-ES';const voice=speechSynthesis.getVoices().find(v=>v.lang.toLowerCase().startsWith(language));if(voice)u.voice=voice;u.rate=.82;u.pitch=1.1;u.onstart=()=>document.querySelector('.mindy').classList.add('speaking');const stop=()=>document.querySelector('.mindy').classList.remove('speaking');u.onend=stop;u.onerror=stop;speechSynthesis.speak(u)}
+$('speak').onclick=()=>mindySay(t("Hola, soy Mindy. Dibuja un reloj con los números del uno al doce. Coloca las manecillas marcando las once y diez. Hazlo con calma. No hay tiempo límite."));
+paint();
+
+$('language').onchange=()=>{language=$('language').value;applyLanguage();};
+applyLanguage();
 </script></body></html>

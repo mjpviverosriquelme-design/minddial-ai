@@ -64,3 +64,16 @@ def review(body:Review,x_review_token:str|None=Header(default=None)):
         db.execute('INSERT INTO reviews VALUES (?,?,?,?,?)',(str(uuid.uuid4()),body.evaluation_id,json.dumps(dict(zip(KEYS,body.scores))),body.note,datetime.now(timezone.utc).isoformat()))
     total=sum(body.scores)
     return {'saved':True,'review_status':'human_validated','human_total':total,'human_result':'PASS' if total>=3 else 'FAIL','retraining':'pending_offline_validation'}
+# Serve the same AI-only frontend and model assets on Python deployments.
+@app.get('/evaluator.js')
+def evaluator_script(): return FileResponse(BASE/'static'/'evaluator.js', media_type='text/javascript')
+
+@app.get('/models/{key}.joblib')
+def browser_model(key:str):
+    if key not in KEYS: raise HTTPException(404,'Model not found')
+    return FileResponse(BASE/'models'/f'{key}.joblib')
+
+@app.get('/mindy.html')
+@app.get('/browser.html')
+@app.get('/demo.html')
+def ai_frontend(): return FileResponse(BASE/'static'/'mindy.html')
