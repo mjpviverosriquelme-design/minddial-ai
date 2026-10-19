@@ -18,26 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Smoke-test four trained models
-        run: |
-          python -m pip install --disable-pip-version-check numpy scikit-learn scikit-image opencv-python-headless joblib
-          python scripts/smoke_test.py
       - name: Prepare website
         run: |
           mkdir -p _site
-          cp static/browser.html _site/index.html
+          cp static/mindy.html _site/index.html
+          cp static/mindy.html _site/mindy.html
           cp static/browser.html _site/browser.html
           cp static/index.html _site/demo.html
-          mkdir -p _site/models
-          test -f models/circle.joblib
-          test -f models/numbers.joblib
-          test -f models/placement.joblib
-          test -f models/hands.joblib
-          cp models/*.joblib _site/models/
-          cp models/validation.json _site/models/validation.json
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
