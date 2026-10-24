@@ -17,3 +17,11 @@ References:
 Google for Developers. (n.d.). Linear regression: Gradient descent. https://developers.google.com/machine-learning/crash-course/linear-regression/gradient-descent
 Google for Developers. (n.d.). Linear regression: Hyperparameters. https://developers.google.com/machine-learning/crash-course/linear-regression/hyperparameters
 Accessed October 23, 2026.
+
+## Pixel red panda update
+- Original code-native pixel-art red panda, gently animated; respects reduced-motion settings.
+- Click any orange cube to remove one; remaining cubes compact into a stack. Click the + construction pad to add one. Keyboard Enter/Space supported.
+- In the robot challenge, clicking the tower or pad requests a gradient-based update by Pixel, preserving the teaching mechanic.
+- Original square-wave chiptune melody and build sounds generated with Web Audio. Off by default; explicit music button starts/stops sound. Audio stops when the tab is hidden. No external audio assets.
+- Concepts visible in the game: target, error, adjustable weight, gradient direction, learning rate, iterative training, overshooting.
+- Verified through Node-based DOM/event simulation; browser visual/audio verification was unavailable for this update.
