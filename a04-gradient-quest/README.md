@@ -1,27 +1,19 @@
-# Block Builders — A04 ITAI 2376
-Author: María José Viveros Riquelme. Team name pending.
-Submission name: A04_[TeamName]_MariaJoseViverosRiquelme_ITAI2376
+# El mundo de los errores — Expectativa vs. realidad
 
-A bilingual building-block game for an 11-year-old audience. Each challenge starts with a simple explanation and concrete example before play.
+María José Viveros Riquelme · ITAI 2376 · A04. Team name pending.
 
-1. Match a 6-block example: count extra/missing blocks and correct your tower.
-2. Match a 9-block example with 1-, 2-, or 4-block changes: discover overshooting.
-3. Train a robot to match 7 blocks: try Giant first, then reduce the update size.
-4. Explain why comparing, adjusting and repeating helps learning.
+A Christmas mini-game in an 8-bit-inspired interface with original pixel SVG gifts, family portraits, a red panda and optional procedural chiptune music.
 
-The first two challenges are manual analogies. The robot uses the gradient of L(w)=(w-target)^2 with alpha=0.05, 0.25, or 1; updates are rounded to whole blocks, minimum one while error remains. This is quantized gradient descent, not exact continuous optimization. Updates outside 0–16 are rejected. The visible difference is absolute difference, not squared loss. No actual neural network is trained. Full technical limitations and sources appear in the game.
+The player predicts one of 15 gifts for each of five relatives: younger sister, older brother, grandfather, parents, and aunt. Each actual gift is assigned before predictions and remains fixed for the round. The five actual gifts cover five categories, with three gift alternatives in each category. Predictions may repeat.
 
-Open dist/index.html directly to play offline. No dependencies or accounts required. Original building-game-inspired SVG art; no affiliation with Minecraft or LEGO. Prepared with AI assistance; review before submitting.
+Scoring: identical gift -> 3 points / loss 0; same category, different gift -> 2 points / loss 1; different category -> 1 point / loss 2. Total loss ranges from 0 to 10; mean is total divided by five. Loss = 3 - score. The custom categorical loss is an educational rule, not a universal emotion measure. Reactions concern the gift mismatch, not the worth of a relative.
 
-References:
-Google for Developers. (n.d.). Linear regression: Gradient descent. https://developers.google.com/machine-learning/crash-course/linear-regression/gradient-descent
-Google for Developers. (n.d.). Linear regression: Hyperparameters. https://developers.google.com/machine-learning/crash-course/linear-regression/hyperparameters
-Accessed October 23, 2026.
+Concepts: prediction, observed outcome, category similarity, loss function, total loss, mean loss, and revising predictions after feedback. The machine applies rules; no trained AI model is claimed. Replaying the same gifts demonstrates using known outcomes, not generalization. New Christmas creates new hidden outcomes.
 
-## Pixel red panda update
-- Original code-native pixel-art red panda, gently animated; respects reduced-motion settings.
-- Click any orange cube to remove one; remaining cubes compact into a stack. Click the + construction pad to add one. Keyboard Enter/Space supported.
-- In the robot challenge, clicking the tower or pad requests a gradient-based update by Pixel, preserving the teaching mechanic.
-- Original square-wave chiptune melody and build sounds generated with Web Audio. Off by default; explicit music button starts/stops sound. Audio stops when the tab is hidden. No external audio assets.
-- Concepts visible in the game: target, error, adjustable weight, gradient direction, learning rate, iterative training, overshooting.
-- Verified through Node-based DOM/event simulation; browser visual/audio verification was unavailable for this update.
+Assignment scope: this is a loss-function module that can introduce Backpropagation; it does not yet teach the full backpropagation algorithm or run gradient descent. The discrete loss is not differentiated.
+
+Play by opening dist/index.html, or use the hosted public page. No dependencies, keys or sign-in needed. Explanatory intro appears before play. Sound starts only through explicit opt-in and pauses when hidden.
+
+Reference: Google for Developers. (n.d.). Linear regression: Loss. https://developers.google.com/machine-learning/crash-course/linear-regression/loss (accessed October 23, 2026). The gift scale is an original adaptation.
+
+Checks: all 225 gift comparison pairs, full five-turn state flow, total/mean loss, fixed outcomes, replay and improved predictions passed Node-based DOM simulation. Browser preview verified gift selection and reveal scoring.
