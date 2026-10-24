@@ -1,34 +1,19 @@
-# Gradient Quest — A04 ITAI 2376
+# Block Builders — A04 ITAI 2376
+Author: María José Viveros Riquelme. Team name pending.
+Submission name: A04_[TeamName]_MariaJoseViverosRiquelme_ITAI2376
 
-**Author:** María José Viveros Riquelme  
-**Team:** pending confirmation  
-**Submission name:** `A04_[TeamName]_MariaJoseViverosRiquelme_ITAI2376`  
-**Topic:** Gradient Descent  
-**Audience:** age 11; approximately 5 minutes  
-**Due:** October 31, 2026, 11:59 PM (course deadline; verify Canvas timezone).
+A bilingual building-block game for an 11-year-old audience. Each challenge starts with a simple explanation and concrete example before play.
 
-## Play
-Open `dist/index.html` directly in a modern browser. No installation, account, API key, or model download is required. English/Spanish toggle included. The optional Google Fonts request falls back to system fonts offline.
+1. Match a 6-block example: count extra/missing blocks and correct your tower.
+2. Match a 9-block example with 1-, 2-, or 4-block changes: discover overshooting.
+3. Train a robot to match 7 blocks: try Giant first, then reduce the update size.
+4. Explain why comparing, adjusting and repeating helps learning.
 
-1. Mission 1: choose the downhill direction.
-2. Mission 2: compare Tiny (0.04), Steady (0.20), and Giant (1.05) learning rates. Observe loss rise with an oversized update; recover with a smaller rate.
-3. Mission 3: reach loss < 0.10 in at most 8 updates.
-4. Explain what AI adjusts and why.
+The first two challenges are manual analogies. The robot uses the gradient of L(w)=(w-target)^2 with alpha=0.05, 0.25, or 1; updates are rounded to whole blocks, minimum one while error remains. This is quantized gradient descent, not exact continuous optimization. Updates outside 0–16 are rejected. The visible difference is absolute difference, not squared loss. No actual neural network is trained. Full technical limitations and sources appear in the game.
 
-## Concept and implementation
-A deterministic educational simulation computes L(w)=(w−2)^2, gradient=2(w−2), and w_next=w−alpha*gradient. Pip's horizontal position represents a weight; vertical height represents loss. This is a convex, one-parameter illustration, not an actual trained deep neural network. Real networks optimize many parameters on more complex landscapes; a global minimum is not guaranteed. Backpropagation computes gradients; gradient descent updates parameters using them.
+Open dist/index.html directly to play offline. No dependencies or accounts required. Original building-game-inspired SVG art; no affiliation with Minecraft or LEGO. Prepared with AI assistance; review before submitting.
 
-## Short presentation script
-“Imagine Pip is learning to make better predictions. The higher Pip stands, the more mistakes it makes. The slope tells us which way error grows; Pip moves the opposite way. Our learning rate controls each update. Let's try a giant step: Pip jumps past the bottom and the error rises. A moderate step works better here. Neural networks also measure prediction error and repeatedly adjust their weights. This valley simplifies that process so we can see it happen.”
-
-Ask the learner: Which way reduces error? What happens with a huge learning rate? What does Pip's position represent? Success means explaining the idea, not only finishing the game.
-
-## Primary references
-Google for Developers. (n.d.). *Linear regression: Gradient descent*. Machine Learning Crash Course. Retrieved October 23, 2026, from https://developers.google.com/machine-learning/crash-course/linear-regression/gradient-descent
-
-Google for Developers. (n.d.). *Linear regression: Hyperparameters*. Machine Learning Crash Course. Retrieved October 23, 2026, from https://developers.google.com/machine-learning/crash-course/linear-regression/hyperparameters
-
-## Credits and submission
-Original interface and SVG artwork prepared with AI assistance. Review the game, supply the actual team name, and ensure the final explanation reflects your understanding before submitting. No player data is collected or stored.
-
-The GitHub branch is separate from MindDial AI's main branch. This assignment does not change the MindDial application.
+References:
+Google for Developers. (n.d.). Linear regression: Gradient descent. https://developers.google.com/machine-learning/crash-course/linear-regression/gradient-descent
+Google for Developers. (n.d.). Linear regression: Hyperparameters. https://developers.google.com/machine-learning/crash-course/linear-regression/hyperparameters
+Accessed October 23, 2026.
